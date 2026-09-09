@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { App } from './app.jsx';
 import { KEY_STORAGE } from './key-store.jsx';
+import { runHistoryKey } from './run-history.js';
 
 vi.mock('./wallet-payment.jsx', () => ({ default: () => <div>Wallet payment controls</div> }));
 
@@ -136,6 +137,7 @@ describe('local API key entry', () => {
       : reply(service));
     render(<App />);
     const run = await screen.findByRole('button', { name: /Run agent/i });
+    fireEvent.change(screen.getByLabelText(/Capital amount/), { target: { value: '2500' } });
     fireEvent.click(run);
     await waitFor(() => expect(fetch.mock.calls.some(([url]) => url === '/gateway/grid-trading-agent/x402')).toBe(true));
     const [, request] = fetch.mock.calls.find(([url]) => url.startsWith('/gateway/'));
@@ -143,5 +145,15 @@ describe('local API key entry', () => {
     expect(request.headers.Authorization).toBeUndefined();
     expect(request.credentials).toBe('omit');
     expect(JSON.parse(request.body).input.chainId).toBe('56');
+    await screen.findByLabelText('Local run history (last 20)');
+    const saved = JSON.parse(memory.get(runHistoryKey('grid-trading-agent')));
+    expect(saved.runs[0].values.capital_quote).toBe('2500');
+    expect(saved.runs[0].response.body).toEqual({ result: { summary: 'Plan ready' } });
+    expect(JSON.stringify(saved)).not.toContain('caller-key');
+    cleanup();
+    render(<App />);
+    await screen.findByLabelText('Local run history (last 20)');
+    expect(screen.getByLabelText(/Capital amount/).value).toBe('2500');
+    expect(fetch.mock.calls.filter(([url]) => url.startsWith('/gateway/'))).toHaveLength(1);
   });
 });

@@ -29,6 +29,8 @@ The home page and Agent deep links open directly, without login, registration, a
 
 ## Deployment
 
+Completed calls are stored in `localStorage` under `xapi-agent-market.runs.v1:<agent-id>`, with the latest 20 runs per Agent. Inputs, returned bodies and payment receipts restore on refresh; the result selector can reopen older runs. Restoring never invokes an Agent or signs/pays again. Request credentials and payment signatures are excluded. A storage error leaves the result visible and warns the user; an unsuccessful write preserves previously saved records. History is local to this browser and origin and is removed when site data is cleared.
+
 Deploy this repository as a **new Vercel project** named `xapi-agent-market`, using the Vite preset, `npm run build` and `dist` output. Do not link it to the main xAPI frontend project.
 
 ```sh

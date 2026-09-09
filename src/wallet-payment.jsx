@@ -65,10 +65,11 @@ function PaymentControls({ host, provider, getBody, bodyKey, locale, onResult, o
     try {
       const result = await payAgentQuote({ quote, optionId: selected, signPayment: signAgentPayment, signal: controller.current.signal });
       setReceipt(result.receipt);
+      onResult(result);
       if (!result.ok) {
         const detail = result.body?.message || result.body?.error || `HTTP ${result.status}`;
         setError(`${zh ? '调用未成功，请核对支付记录后再重试。' : 'Call failed. Check payment history before retrying.'} ${typeof detail === 'string' ? detail : ''}`);
-      } else { onResult(result); }
+      }
     } catch (cause) {
       setError(paymentError(cause, zh) + (cause instanceof TypeError ? (zh ? ' 若已签名，请先核对钱包支付记录，避免重复付款。' : ' If already signed, check your wallet before paying again.') : ''));
     } finally { setQuote(null); locked.current = false; setBusy(''); onRunning(false); }

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { XIcons, XPrim } from '../primitives.jsx';
 import { XApi } from '../services.js';
+import { readRunHistory, saveRunHistory, createRunRecord, restoreRunValues, MAX_SAVED_RUNS } from '../run-history.js';
 import { XShell } from '../shell.jsx';
 import { useT } from '../i18n.jsx';
 import { useApiKey } from '../key-store.jsx';
@@ -778,13 +779,16 @@ export const AgentDetailPage = () => {
   const { locale, t } = useT();
   const id = route.params?.id || '';
   const fallbackDefinition = resolveAgentDefinition(id);
+  const [history, setHistory] = useState(() => readRunHistory(id));
+  const [selectedRun, setSelectedRun] = useState(() => history[0]?.id || '');
+  const [storageError, setStorageError] = useState(false);
   const [service, setService] = useState(null);
   const [definition, setDefinition] = useState(fallbackDefinition);
-  const [values, setValues] = useState(() => initialAgentValues(fallbackDefinition));
+  const [values, setValues] = useState(() => restoreRunValues(fallbackDefinition, history[0]?.values));
   const [loadingService, setLoadingService] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
-  const [response, setResponse] = useState(null);
+  const [response, setResponse] = useState(() => history[0]?.response || null);
   const abortRef = useRef(null);
   const { apiKey } = useApiKey();
   const [paymentMode, setPaymentMode] = useState(apiKey ? 'key' : 'b402');
@@ -803,7 +807,7 @@ export const AgentDetailPage = () => {
         const nextDefinition = resolveAgentDefinition(row) || fallbackDefinition;
         setService(row);
         setDefinition(nextDefinition);
-        setValues(initialAgentValues(nextDefinition));
+        setValues(restoreRunValues(nextDefinition, history[0]?.values));
       })
       .catch((cause) => {
         if (!cancelled) setError(cause?.message || t('agentMarket.detail.loadError'));
@@ -814,9 +818,19 @@ export const AgentDetailPage = () => {
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  const recordResponse = (next) => {
+    setResponse(next);
+    try {
+      const record = createRunRecord(displayValues, next);
+      const runs = [record, ...history].slice(0, MAX_SAVED_RUNS);
+      setHistory(runs); setSelectedRun(record.id);
+      saveRunHistory(id, runs);
+      setStorageError(false);
+    } catch { setStorageError(true); }
+  };
+
   const updateValue = (key, value) => {
     setValues((current) => ({ ...current, [key]: value }));
-    setResponse(null);
     setError('');
   };
 
@@ -848,7 +862,6 @@ export const AgentDetailPage = () => {
     abortRef.current = controller;
     setRunning(true);
     setError('');
-    setResponse(null);
     try {
       const next = await XApi.gateway.invoke({
         host: service.host,
@@ -860,11 +873,11 @@ export const AgentDetailPage = () => {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
+      recordResponse(next);
       if (!next.ok) {
         const message = next.body?.message || next.body?.error?.message || next.body?.error || next.error || `HTTP ${next.status || 500}`;
         throw new Error(typeof message === 'string' ? message : JSON.stringify(message));
       }
-      setResponse(next);
     } catch (cause) {
       if (cause?.name !== 'AbortError') setError(cause?.message || t('agentMarket.detail.runError'));
     } finally {
@@ -951,7 +964,6 @@ export const AgentDetailPage = () => {
             </div>
             <button className="btn btn-sm" type="button" disabled={running} onClick={() => {
               setValues(initialAgentValues(definition));
-              setResponse(null);
               setError('');
             }}>{t('agentMarket.detail.resetDemo')}</button>
           </div>
@@ -1004,11 +1016,11 @@ export const AgentDetailPage = () => {
 
           <div className="payment-methods" role="group" aria-label={locale === 'zh' ? '支付方式' : 'Payment method'}>
             {[['key', 'API Key'], ['x402', 'x402 · Base USDC'], ['b402', 'B402 · BSC']].map(([mode, label]) => (
-              <button className={`btn${paymentMode === mode ? ' active' : ''}`} type="button" key={mode} disabled={running} aria-pressed={paymentMode === mode} onClick={() => { setPaymentMode(mode); setResponse(null); setError(''); }}>{label}</button>
+              <button className={`btn${paymentMode === mode ? ' active' : ''}`} type="button" key={mode} disabled={running} aria-pressed={paymentMode === mode} onClick={() => { setPaymentMode(mode); setError(''); }}>{label}</button>
             ))}
           </div>
           {paymentMode !== 'key' && service && <Suspense fallback={<p>{locale === 'zh' ? '加载钱包…' : 'Loading wallet…'}</p>}>
-            <WalletPayment host={service.host} provider={paymentMode} getBody={getInvocationBody} bodyKey={JSON.stringify(displayValues)} locale={locale} onResult={setResponse} onRunning={setRunning} />
+            <WalletPayment host={service.host} provider={paymentMode} getBody={getInvocationBody} bodyKey={JSON.stringify(displayValues)} locale={locale} onResult={recordResponse} onRunning={setRunning} />
           </Suspense>}
 
           {error && <div className="agent-run-error"><XIcons.IconInfo size={14} /> {error}</div>}
@@ -1045,7 +1057,22 @@ export const AgentDetailPage = () => {
         </aside>
       </div>
 
-      {response && <AgentResult definition={definition} response={response} />}
+      {storageError && <p className="agent-run-error" role="alert">{locale === 'zh' ? '浏览器无法保存本次结果（存储已满或被禁用）。结果仍在当前页面，刷新前请复制原始响应。' : 'Browser storage is full or unavailable. This result is only on this page; copy the raw response before refreshing.'}</p>}
+      {history.length > 0 && <section className="agent-history card">
+        <label>{locale === 'zh' ? '本地调用记录（最近 20 次）' : 'Local run history (last 20)'}
+          <select className="input" value={selectedRun} disabled={running} onChange={event => {
+            const run = history.find(item => item.id === event.target.value);
+            if (!run) return;
+            setSelectedRun(run.id); setResponse(run.response);
+            setValues(restoreRunValues(definition, run.values)); setError('');
+          }}>{history.map(run => <option key={run.id} value={run.id}>{new Date(run.completedAt).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US')} · HTTP {run.response.status}</option>)}</select>
+        </label>
+        <p>{locale === 'zh' ? '下方显示所选请求的结果。记录保存在当前浏览器，刷新后自动恢复，不会重新请求或付款。' : 'The selected request’s result appears below. History stays in this browser and restores after refresh without another call or payment.'}</p>
+      </section>}
+      {response?.receipt && <div className="payment-receipt"><strong>{locale === 'zh' ? '支付回执' : 'Payment receipt'}</strong><pre>{JSON.stringify(response.receipt, null, 2)}</pre></div>}
+      {response && (response.ok === false
+        ? <div className="agent-run-error"><strong>HTTP {response.status}</strong><pre>{JSON.stringify(response.body, null, 2)}</pre></div>
+        : <AgentResult definition={definition} response={response} />)}
     </main>
   );
 };
