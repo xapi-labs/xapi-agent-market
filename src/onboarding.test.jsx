@@ -4,6 +4,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { App } from './app.jsx';
 import { KEY_STORAGE } from './key-store.jsx';
 
+vi.mock('./wallet-payment.jsx', () => ({ default: () => <div>Wallet payment controls</div> }));
+
 let memory;
 let storage;
 const reply = data => Promise.resolve(new Response(JSON.stringify({ data }), { status: 200 }));
@@ -19,19 +21,34 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(() => reply([])));
   vi.stubGlobal('scrollTo', vi.fn());
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue() } });
-  window.history.replaceState(null, '', '/');
+  window.history.replaceState(null, '', '/key');
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe('local API key entry', () => {
-  it('allows wallet entry without creating or storing an API key', async () => {
+  it('opens the market directly without creating or storing an API key', async () => {
+    window.history.replaceState(null, '', '/');
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Enter with wallet payment · x402 / B402' }));
     await screen.findByText('Choose an agent');
     expect(memory.has(KEY_STORAGE)).toBe(false);
     expect(fetch.mock.calls.map(([url]) => url)).toEqual(['/xapi/api-services']);
-    expect(screen.getByRole('button', { name: 'Add API key' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Add API key (optional)' })).toBeTruthy();
   });
+  it.each(['missing', 'pending', 'unavailable storage'])('opens Agent deep links with %s key state', async state => {
+    window.history.replaceState(null, '', '/agents/grid-trading-agent');
+    if (state === 'pending') memory.set(KEY_STORAGE, JSON.stringify({ key: 'pending-key', ready: false }));
+    if (state === 'unavailable storage') storage.getItem.mockImplementation(key => {
+      if (key === KEY_STORAGE) throw new Error('Blocked');
+      return memory.get(key) ?? null;
+    });
+    fetch.mockImplementation(() => reply({ name: 'Grid Trading Agent', host: 'grid-trading-agent.p.test.xapi.to' }));
+    render(<App />);
+    await screen.findByText('Wallet payment controls');
+    expect(screen.queryByLabelText('xAPI API Key')).toBeNull();
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual(['/xapi/api-services/grid-trading-agent']);
+    expect(screen.getByRole('button', { name: 'B402 · BSC' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('stores an existing key locally without any authentication request', async () => {
     render(<App />);
     expect(fetch).not.toHaveBeenCalled();
@@ -100,24 +117,25 @@ describe('local API key entry', () => {
     expect(screen.getByRole('button', { name: 'Enter Agent Market' }).disabled).toBe(true);
   });
 
-  it('removes the local key and returns to entry', async () => {
+  it('keeps the market open after removing the local key', async () => {
+    window.history.replaceState(null, '', '/');
     memory.set(KEY_STORAGE, JSON.stringify({ key: 'saved-key', ready: true }));
     render(<App />);
     await screen.findByText('Choose an agent');
     fireEvent.click(screen.getByRole('button', { name: 'Remove key' }));
-    expect(screen.getByLabelText('xAPI API Key').value).toBe('');
+    expect(screen.queryByLabelText('xAPI API Key')).toBeNull();
+    expect(screen.getByText('Choose an agent')).toBeTruthy();
     expect(memory.has(KEY_STORAGE)).toBe(false);
   });
 
-  it('uses the entered key for an agent call after entering through a deep link', async () => {
+  it('uses the optional saved key for an agent call through a deep link', async () => {
+    memory.set(KEY_STORAGE, JSON.stringify({ key: 'caller-key', ready: true }));
     window.history.replaceState(null, '', '/agents/grid-trading-agent');
     const service = { name: 'Grid Trading Agent', host: 'grid-trading-agent.p.test.xapi.to', isAgentStudioService: true };
     fetch.mockImplementation(url => url.startsWith('/gateway/')
       ? Promise.resolve(new Response(JSON.stringify({ result: { summary: 'Plan ready' } })))
       : reply(service));
     render(<App />);
-    fireEvent.change(screen.getByLabelText('xAPI API Key'), { target: { value: 'caller-key' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Enter Agent Market' }));
     const run = await screen.findByRole('button', { name: /Run agent/i });
     fireEvent.click(run);
     await waitFor(() => expect(fetch.mock.calls.some(([url]) => url === '/gateway/grid-trading-agent/x402')).toBe(true));

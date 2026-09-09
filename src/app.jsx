@@ -10,7 +10,6 @@ function MarketApp() {
   const { route, navigate } = XShell.useRoute();
   const { locale, setLocale } = useT();
   const [error, setError] = useState('');
-  const [walletEntry, setWalletEntry] = useState(false);
   const zh = locale === 'zh';
   return <>
     <header className="market-header">
@@ -18,7 +17,7 @@ function MarketApp() {
       <nav aria-label={zh ? '主导航' : 'Main navigation'}>
         <span className="market-environment">{zh ? '测试环境' : 'Test environment'}</span>
         <button className="btn btn-sm" onClick={() => setLocale(zh ? 'en' : 'zh')}>{zh ? 'English' : '中文'}</button>
-        {!apiKey && walletEntry && <button className="btn btn-sm" onClick={() => navigate('key')}>{zh ? '添加 API Key' : 'Add API key'}</button>}
+        {!apiKey && <button className="btn btn-sm" onClick={() => navigate('key')}>{zh ? '添加 API Key（可选）' : 'Add API key (optional)'}</button>}
         {apiKey && <>
           <button className="btn btn-sm" onClick={() => navigate('key')}>{zh ? '更换 Key' : 'Change key'}</button>
           <button className="btn btn-sm" onClick={() => {
@@ -29,8 +28,8 @@ function MarketApp() {
       </nav>
     </header>
     {error && <p role="alert" className="key-error">{error}</p>}
-    {(!apiKey && !walletEntry) || route.page === 'key'
-      ? <KeyGate key={pendingKey ? 'pending' : 'input'} onWalletEnter={() => { setWalletEntry(true); if (route.page === 'key') navigate('agents'); }} onEnter={() => { if (route.page === 'key') navigate('agents'); }} />
+    {route.page === 'key'
+      ? <KeyGate key={pendingKey ? 'pending' : 'input'} onBack={() => navigate('agents')} onEnter={() => navigate('agents')} />
       : route.page === 'agent-detail'
         ? <AgentDetailPage key={`${route.params.id}:${apiKey}`} />
         : <AgentMarketPage />}

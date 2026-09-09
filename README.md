@@ -17,7 +17,9 @@ npm run build
 
 The local site runs at `http://localhost:5178`. `vercel.json` is the single source of truth for upstream routing, also consumed by the Vite development proxy and the gateway host allowlist. No API keys or other secrets belong in build configuration.
 
-## Key entry
+## Optional API key
+
+The home page and Agent deep links open directly, without login, registration, a wallet connection, or an API key. An API key is optional and is configured only when the user explicitly opens `/key`. Missing, pending, invalid local storage, or removed keys never block browsing. Calls without an API key default to B402 wallet payment.
 
 - An existing API key is trimmed and saved locally; entry does not validate it against an authentication endpoint. Invalid/revoked keys are reported by the gateway when an agent is called.
 - Quick create calls xAPI `POST /api/auth/register` exactly once per click and uses only the returned API key. It does not call `/auth/login/apikey`, fetch `/auth/me`, or save access/refresh tokens.
@@ -51,7 +53,7 @@ Agent invocations now target the published relay services below. Existing catalo
 
 ### Wallet payments
 
-Users can enter without an API key by selecting wallet payment, then choose API Key, x402 (Base USDC), or B402 (BSC U/USD1/USDT/USDC) on the Agent page. Wallet support is lazy-loaded and adapts `xapi-frontend-v2/src/wallet.js` and its wagmi connector configuration. Optional mobile WalletConnect requires `VITE_WALLET_CONNECT_PROJECT_ID`; browser extensions and Coinbase Wallet are configured by default.
+Users open the market directly, then choose API Key, x402 (Base USDC), or B402 (BSC U/USD1/USDT/USDC) on the Agent page. Wallet support is lazy-loaded and adapts `xapi-frontend-v2/src/wallet.js` and its wagmi connector configuration. Optional mobile WalletConnect requires `VITE_WALLET_CONNECT_PROJECT_ID`; browser extensions and Coinbase Wallet are configured by default.
 
 The wallet flow requests a live `PAYMENT-REQUIRED` quote without credentials, shows the exact asset/amount/recipient, and signs only after the user confirms. It preserves the quoted JSON body and resource when retrying once with `PAYMENT-SIGNATURE`. API key and payment signature are never combined, no automatic balance fallback runs, and a failed paid request is never automatically paid again. B402 Permit2 approval uses the call amount (not a blanket approval); approval receipts must succeed before signing. Payment receipts are shown when supplied by the gateway.
 
