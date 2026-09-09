@@ -4,6 +4,7 @@ import { XApi } from '../services.js';
 import { XShell } from '../shell.jsx';
 import { useT } from '../i18n.jsx';
 import { useApiKey } from '../key-store.jsx';
+import { agentCopy, localizedAgentValues, fieldPlaceholder, resultStatus } from '../agent-copy.js';
 
 const AGENT_MARKERS = new Set([
   'agent',
@@ -382,7 +383,7 @@ const AgentSkeleton = () => (
 
 export const AgentMarketPage = () => {
   const { navigate } = XShell.useRoute();
-  const { t } = useT();
+  const { locale, t } = useT();
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -412,7 +413,7 @@ export const AgentMarketPage = () => {
     const needle = query.trim().toLowerCase();
     let rows = needle
       ? services.filter((service) => (
-        `${service.name || ''} ${service.description || ''} ${(service.tags || []).join(' ')}`
+        `${service.name || ''} ${service.description || ''} ${['en', 'zh'].map(lang => { const copy = agentCopy(service, resolveAgentDefinition(service), lang); return `${copy.name} ${copy.description}`; }).join(' ')} ${(service.tags || []).join(' ')}`
           .toLowerCase()
           .includes(needle)
       ))
@@ -521,6 +522,7 @@ export const AgentMarketPage = () => {
           <div className="agent-market-cards apx-stagger-in">
             {visible.map((service) => {
               const calls = agentCalls(service);
+              const copy = agentCopy(service, resolveAgentDefinition(service), locale);
               const identity = agentIdentity(service);
               const identityUrl = bscScanAgentIdentityUrl(identity);
               return (
@@ -537,23 +539,21 @@ export const AgentMarketPage = () => {
                     }
                   }}
                 >
-                  <div className="row between" style={{ alignItems: 'flex-start' }}>
-                    <div className="row gap-2" style={{ alignItems: 'center', minWidth: 0 }}>
-                      <div className="agent-market-avatar">
-                        {service.logoUrl
-                          ? <img src={service.logoUrl} alt="" />
-                          : <XIcons.IconCpu size={19} />}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <h3>{service.name}</h3>
-                        <div className="micro-mono">{agentRole(service, t)}</div>
-                      </div>
-                    </div>
+                  <div className="agent-market-card-meta">
+                    <div className="micro-mono">{agentRole(service, t)}</div>
                     <span className="agent-market-live"><i />{t('agentMarket.live')}</span>
                   </div>
+                  <div className="agent-market-card-heading">
+                    <div className="agent-market-avatar">
+                      {service.logoUrl
+                        ? <img src={service.logoUrl} alt="" />
+                        : <XIcons.IconCpu size={19} />}
+                    </div>
+                    <h3>{copy.name}</h3>
+                  </div>
 
-                  <p className="agent-market-description clamp-2">
-                    {service.description || t('agentMarket.descriptionFallback')}
+                  <p className="agent-market-description">
+                    {copy.description || t('agentMarket.descriptionFallback')}
                   </p>
 
                   <div className="row gap-2 agent-market-badges" style={{ flexWrap: 'wrap' }}>
@@ -720,7 +720,7 @@ const AgentResult = ({ definition, response }) => {
       <div className="row between agent-result-heading">
         <div>
           <div className="micro">{t('agentMarket.result.eyebrow')}</div>
-          <h2>{result.status || 'complete'}</h2>
+          <h2>{resultStatus(result.status, locale)}</h2>
         </div>
         <div className="row gap-2" style={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <span className="tag">{response.latency} ms</span>
@@ -749,7 +749,7 @@ const AgentResult = ({ definition, response }) => {
                 Debt: '债务价值',
                 'Stress cases': '压力场景',
               }[label] || label) : label}</span>
-              <strong>{displayValue(value)}</strong>
+              <strong>{typeof value === 'boolean' && locale === 'zh' ? (value ? '是' : '否') : displayValue(value)}</strong>
             </div>
           ))}
         </div>
@@ -785,6 +785,8 @@ export const AgentDetailPage = () => {
   const [response, setResponse] = useState(null);
   const abortRef = useRef(null);
   const { apiKey } = useApiKey();
+  const copy = agentCopy(service, definition, locale);
+  const displayValues = localizedAgentValues(definition, values, locale);
   const identity = agentIdentity(service);
   const identityUrl = bscScanAgentIdentityUrl(identity);
   const walletUrl = bscScanAgentWalletUrl(identity);
@@ -845,7 +847,7 @@ export const AgentDetailPage = () => {
         method: 'POST',
         path: '/x402',
         headers: { 'content-type': 'application/json' },
-        body: buildAgentInvocationBody(definition, values),
+        body: buildAgentInvocationBody(definition, displayValues),
         apiKey,
         signal: controller.signal,
       });
@@ -885,8 +887,8 @@ export const AgentDetailPage = () => {
       <header className="agent-detail-hero">
         <div>
           <div className="micro">{agentRole(service, t)} · BNB Chain</div>
-          <h1>{service.name || definition.title}</h1>
-          <p>{service.description}</p>
+          <h1>{copy.name}</h1>
+          <p>{copy.description}</p>
         </div>
         <div className="agent-detail-proof card">
           <div><span>{t('agentMarket.detail.runtime')}</span><strong>Cloudflare WfP</strong></div>
@@ -956,7 +958,7 @@ export const AgentDetailPage = () => {
                 {field.type === 'select' ? (
                   <select
                     className="input"
-                    value={values[field.key] ?? ''}
+                    value={displayValues[field.key] ?? ''}
                     required={field.required}
                     onChange={(event) => updateValue(field.key, event.target.value)}
                   >
@@ -969,8 +971,8 @@ export const AgentDetailPage = () => {
                 ) : field.type === 'textarea' ? (
                   <textarea
                     className="input agent-prompt-input"
-                    value={values[field.key] ?? ''}
-                    placeholder={field.placeholder}
+                    value={displayValues[field.key] ?? ''}
+                    placeholder={fieldPlaceholder(field, locale)}
                     required={field.required}
                     maxLength={field.maxLength}
                     rows={4}
@@ -982,8 +984,8 @@ export const AgentDetailPage = () => {
                     type={field.type}
                     min={field.min}
                     max={field.max}
-                    value={values[field.key] ?? ''}
-                    placeholder={field.placeholder}
+                    value={displayValues[field.key] ?? ''}
+                    placeholder={fieldPlaceholder(field, locale)}
                     required={field.required}
                     onChange={(event) => updateValue(field.key, event.target.value)}
                   />

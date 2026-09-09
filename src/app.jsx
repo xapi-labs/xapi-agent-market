@@ -16,7 +16,7 @@ function MarketApp() {
       <a className="market-brand" href="/" onClick={event => { event.preventDefault(); navigate('agents'); }}><span className="brand-mark">x</span> Agent Market <span className="brand-by">by xAPI</span></a>
       <nav aria-label={zh ? '主导航' : 'Main navigation'}>
         <span className="market-environment">{zh ? '测试环境' : 'Test environment'}</span>
-        <button className="btn btn-sm" onClick={() => setLocale(zh ? 'en' : 'zh')}>{zh ? 'EN' : '中文'}</button>
+        <button className="btn btn-sm" onClick={() => setLocale(zh ? 'en' : 'zh')}>{zh ? 'English' : '中文'}</button>
         {apiKey && <>
           <button className="btn btn-sm" onClick={() => navigate('key')}>{zh ? '更换 Key' : 'Change key'}</button>
           <button className="btn btn-sm" onClick={() => {
@@ -32,7 +32,7 @@ function MarketApp() {
       : route.page === 'agent-detail'
         ? <AgentDetailPage key={`${route.params.id}:${apiKey}`} />
         : <AgentMarketPage />}
-    <footer className="market-footer">Agent Market <span>Powered by <a href="https://xapi.to" target="_blank" rel="noreferrer">xAPI</a></span></footer>
+    <footer className="market-footer">Agent Market <span>{zh ? '技术支持：' : 'Powered by '}<a href="https://xapi.to" target="_blank" rel="noreferrer">xAPI</a></span></footer>
   </>;
 }
 
