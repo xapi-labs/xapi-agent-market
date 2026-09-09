@@ -3,7 +3,21 @@ import deployment from '../vercel.json';
 // Only the configured xAPI gateway hosts can receive a user's key.
 const gateways = new Map(deployment.rewrites
   .filter(({ source }) => source.startsWith('/gateway/'))
-  .map(({ source, destination }) => [new URL(destination).host, source.replace('/:path*', '')]));
+  .flatMap(({ source, destination }) => {
+    const upstream = new URL(destination).host;
+    const prefix = source.replace('/:path*', '');
+    // Catalog entries and existing deep links retain the original Agent host.
+    // Both identities route to the published relay configured in vercel.json.
+    const catalogHost = `${prefix.split('/').pop()}.${upstream.split('.').slice(1).join('.')}`;
+    return [[upstream, prefix], [catalogHost, prefix]];
+  }));
+
+export function agentGatewayRoute(host) {
+  const base = gateways.get(host);
+  if (!base) throw new Error('This agent gateway is not configured for this market.');
+  const route = deployment.rewrites.find(({ source }) => source === `${base}/:path*`);
+  return { url: `${base}/x402`, upstream: route.destination.replace(':path*', 'x402') };
+}
 
 async function readJson(response) {
   const value = await response.json().catch(() => null);

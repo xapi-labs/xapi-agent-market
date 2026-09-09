@@ -3,7 +3,7 @@ import { useApiKey } from './key-store.jsx';
 import { createApiKey } from './services.js';
 import { useT } from './i18n.jsx';
 
-export function KeyGate({ onEnter }) {
+export function KeyGate({ onEnter, onWalletEnter }) {
   const { apiKey, pendingKey, saveKey } = useApiKey();
   const { locale } = useT();
   const zh = locale === 'zh';
@@ -90,6 +90,7 @@ export function KeyGate({ onEnter }) {
       {!generated && <>
         <div className="key-divider"><span>{zh ? '还没有 API Key？' : 'No API key yet?'}</span></div>
         <button className="btn key-create" type="button" disabled={!!busy} onClick={create}>{busy === 'create' ? (zh ? '创建中…' : 'Creating…') : (zh ? '通过 xAPI 快速创建' : 'Quick create with xAPI')}</button>
+        <button className="btn key-create wallet-entry" type="button" disabled={!!busy} onClick={onWalletEnter}>{zh ? '使用钱包支付进入 · x402 / B402' : 'Enter with wallet payment · x402 / B402'}</button>
       </>}
       <p className="key-footnote">{zh ? '密钥只存储在此浏览器中，并在调用时发送至 xAPI 网关。清除浏览器数据会移除本地密钥。' : 'Your key stays in this browser and is sent to the xAPI gateway when you run an agent. Clearing browser data removes your local key.'}</p>
     </section>

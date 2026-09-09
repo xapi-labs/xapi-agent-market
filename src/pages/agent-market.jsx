@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { XIcons, XPrim } from '../primitives.jsx';
 import { XApi } from '../services.js';
 import { XShell } from '../shell.jsx';
 import { useT } from '../i18n.jsx';
 import { useApiKey } from '../key-store.jsx';
 import { agentCopy, localizedAgentValues, fieldPlaceholder, resultStatus } from '../agent-copy.js';
+
+const WalletPayment = lazy(() => import('../wallet-payment.jsx'));
 
 const AGENT_MARKERS = new Set([
   'agent',
@@ -785,6 +787,7 @@ export const AgentDetailPage = () => {
   const [response, setResponse] = useState(null);
   const abortRef = useRef(null);
   const { apiKey } = useApiKey();
+  const [paymentMode, setPaymentMode] = useState(apiKey ? 'key' : 'b402');
   const copy = agentCopy(service, definition, locale);
   const displayValues = localizedAgentValues(definition, values, locale);
   const identity = agentIdentity(service);
@@ -817,21 +820,26 @@ export const AgentDetailPage = () => {
     setError('');
   };
 
-  const runAgent = async () => {
-    if (!definition || !service || running) return;
+  const getInvocationBody = () => {
+    if (!definition || !service) throw new Error(t('agentMarket.detail.loadError'));
     const missingRequired = missingRequiredAgentFields(definition, values);
     if (missingRequired.length > 0) {
       const labels = missingRequired
         .map((field) => locale === 'zh' ? (ZH_FIELD_LABELS[field.key] || field.label) : field.label)
         .join(', ');
-      setError(`${t('agentMarket.detail.requiredFields')}: ${labels}`);
-      return;
+      throw new Error(`${t('agentMarket.detail.requiredFields')}: ${labels}`);
     }
     const wallet = String(values.walletAddress || '').trim();
     if (wallet && !/^0x[A-Fa-f0-9]{40}$/.test(wallet)) {
-      setError(t('agentMarket.detail.walletInvalid'));
-      return;
+      throw new Error(t('agentMarket.detail.walletInvalid'));
     }
+    return buildAgentInvocationBody(definition, displayValues);
+  };
+
+  const runAgent = async () => {
+    if (!definition || !service || running) return;
+    let body;
+    try { body = getInvocationBody(); } catch (cause) { setError(cause.message); return; }
     if (!apiKey) {
       navigate('key');
       return;
@@ -847,7 +855,7 @@ export const AgentDetailPage = () => {
         method: 'POST',
         path: '/x402',
         headers: { 'content-type': 'application/json' },
-        body: buildAgentInvocationBody(definition, displayValues),
+        body,
         apiKey,
         signal: controller.signal,
       });
@@ -941,14 +949,14 @@ export const AgentDetailPage = () => {
               <div className="micro">{t('agentMarket.detail.configureEyebrow')}</div>
               <h2>{t('agentMarket.detail.configure')}</h2>
             </div>
-            <button className="btn btn-sm" type="button" onClick={() => {
+            <button className="btn btn-sm" type="button" disabled={running} onClick={() => {
               setValues(initialAgentValues(definition));
               setResponse(null);
               setError('');
             }}>{t('agentMarket.detail.resetDemo')}</button>
           </div>
           <p className="agent-config-note">{t('agentMarket.detail.demoNotice')}</p>
-          <div className="agent-field-grid">
+          <fieldset className="agent-field-grid payment-fields" disabled={running}>
             {definition.fields.map((field) => (
               <label key={field.key} className={field.wide ? 'agent-field-wide' : ''}>
                 <span>
@@ -992,16 +1000,25 @@ export const AgentDetailPage = () => {
                 )}
               </label>
             ))}
+          </fieldset>
+
+          <div className="payment-methods" role="group" aria-label={locale === 'zh' ? '支付方式' : 'Payment method'}>
+            {[['key', 'API Key'], ['x402', 'x402 · Base USDC'], ['b402', 'B402 · BSC']].map(([mode, label]) => (
+              <button className={`btn${paymentMode === mode ? ' active' : ''}`} type="button" key={mode} disabled={running} aria-pressed={paymentMode === mode} onClick={() => { setPaymentMode(mode); setResponse(null); setError(''); }}>{label}</button>
+            ))}
           </div>
+          {paymentMode !== 'key' && service && <Suspense fallback={<p>{locale === 'zh' ? '加载钱包…' : 'Loading wallet…'}</p>}>
+            <WalletPayment host={service.host} provider={paymentMode} getBody={getInvocationBody} bodyKey={JSON.stringify(displayValues)} locale={locale} onResult={setResponse} onRunning={setRunning} />
+          </Suspense>}
 
           {error && <div className="agent-run-error"><XIcons.IconInfo size={14} /> {error}</div>}
 
           <div className="agent-run-footer">
             <div>
               <strong>{t('agentMarket.detail.oneRequest')}</strong>
-              <span>{t('agentMarket.detail.noExecution')}</span>
+              <span>{paymentMode === 'key' ? t('agentMarket.detail.noExecution') : locale === 'zh' ? 'Agent 只生成方案；钱包签名用于支付调用费。' : 'The agent only builds a plan; wallet signatures pay the call fee.'}</span>
             </div>
-            {running ? (
+            {paymentMode !== 'key' ? null : running ? (
               <button className="btn" type="button" onClick={() => abortRef.current?.abort()}>
                 {t('agentMarket.detail.cancel')}
               </button>
@@ -1024,7 +1041,7 @@ export const AgentDetailPage = () => {
             <li>{t('agentMarket.detail.step2')}</li>
             <li>{t('agentMarket.detail.step3')}</li>
           </ol>
-          <p>{t('agentMarket.detail.executionNote')}</p>
+          <p>{paymentMode === 'key' ? t('agentMarket.detail.executionNote') : locale === 'zh' ? '先查看报价，再在钱包中确认支付。网关结算调用费用后执行 Agent，并返回支付回执。' : 'Review the quote and confirm payment in your wallet. The gateway settles the call fee, runs the agent and returns a payment receipt.'}</p>
         </aside>
       </div>
 

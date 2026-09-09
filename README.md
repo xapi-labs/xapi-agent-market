@@ -40,6 +40,23 @@ The current Vercel Hobby project is deployed through the CLI. Vercel rejected Gi
 
 External rewrites handle browser CORS without modifying the backend. Gateway rewrites are restricted to the four configured Agent hosts. To add another agent host, add its gateway rewrite. To promote to production, first verify the agents are available there, update the destinations in `vercel.json` and the environment label in `src/app.jsx`, rebuild and redeploy. Test and production keys are not interchangeable.
 
+Agent invocations now target the published relay services below. Existing catalog identities and page links use the same routes, and both original and relay hosts are accepted by the gateway allowlist. The browser's saved key is sent as `xapi-key`.
+
+| Agent | POST endpoint |
+|---|---|
+| Grid trading | `https://agent-market-grid.p.test.xapi.to/x402` |
+| Yield optimisation | `https://agent-market-yield.p.test.xapi.to/x402` |
+| Health factor | `https://agent-market-health.p.test.xapi.to/x402` |
+| Liquidity rebalancing | `https://agent-market-liquidity.p.test.xapi.to/x402` |
+
+### Wallet payments
+
+Users can enter without an API key by selecting wallet payment, then choose API Key, x402 (Base USDC), or B402 (BSC U/USD1/USDT/USDC) on the Agent page. Wallet support is lazy-loaded and adapts `xapi-frontend-v2/src/wallet.js` and its wagmi connector configuration. Optional mobile WalletConnect requires `VITE_WALLET_CONNECT_PROJECT_ID`; browser extensions and Coinbase Wallet are configured by default.
+
+The wallet flow requests a live `PAYMENT-REQUIRED` quote without credentials, shows the exact asset/amount/recipient, and signs only after the user confirms. It preserves the quoted JSON body and resource when retrying once with `PAYMENT-SIGNATURE`. API key and payment signature are never combined, no automatic balance fallback runs, and a failed paid request is never automatically paid again. B402 Permit2 approval uses the call amount (not a blanket approval); approval receipts must succeed before signing. Payment receipts are shown when supplied by the gateway.
+
+The xAPI environment is test, but wallet assets are **mainnet funds**. Live checks on 2026-09-09 returned B402 quotes for all four endpoints (0.1 token) and no Base USDC option. Base support is implemented and remains unavailable until the gateway advertises it; the client never silently substitutes another network or token. Signed payload creation is tested with mocked wallet actions; no real wallet payment was made during development.
+
 ## Verification
 
 `npm test` covers the inherited Agent definitions and BscScan identities, existing-key entry without login, generated-key copy/download gating, pending-key recovery, clipboard/storage/registration failures, removal, deep links, invocation headers, cancellation and untrusted gateway rejection.

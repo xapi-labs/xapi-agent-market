@@ -38,3 +38,22 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--c-mint); outlin
   .market-header nav { gap: 6px; }
 }
 @media (max-width: 400px) { .brand-by { display: none; } .key-page { padding: 32px 16px; } .key-card { padding: 22px; } }
+.payment-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.payment-methods { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.payment-methods .active { color: var(--accent, #65d6b0); border-color: currentColor; background: #65d6b012; }
+.wallet-payment { display: grid; gap: 14px; margin-top: 18px; padding: 20px; border: 1px solid #303136; border-radius: 12px; min-width: 0; }
+.wallet-payment p { margin: 0; color: #a4a5ad; line-height: 1.6; }
+.wallet-payment .payment-network-note { color: #e2c58f; font-size: 13px; }
+.wallet-connection, .wallet-connectors { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.payment-quote { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid #303136; }
+.payment-quote label { display: grid; gap: 8px; }
+.payment-quote .payment-amount { font-size: 28px; color: #65d6b0; }
+.payment-quote > span { color: #a4a5ad; font-size: 13px; }
+.payment-recipient, .payment-receipt { overflow-wrap: anywhere; }
+.payment-receipt { display: grid; gap: 8px; padding: 14px; border: 1px solid #65d6b050; border-radius: 8px; }
+.wallet-entry { margin-top: 10px; }
+@media (max-width: 600px) {
+  .payment-methods .btn { flex: 1 1 100%; }
+  .wallet-payment { padding: 14px; }
+  .wallet-payment .btn { white-space: normal; height: auto; min-height: 40px; }
+}

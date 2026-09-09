@@ -24,6 +24,14 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe('local API key entry', () => {
+  it('allows wallet entry without creating or storing an API key', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Enter with wallet payment · x402 / B402' }));
+    await screen.findByText('Choose an agent');
+    expect(memory.has(KEY_STORAGE)).toBe(false);
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual(['/xapi/api-services']);
+    expect(screen.getByRole('button', { name: 'Add API key' })).toBeTruthy();
+  });
   it('stores an existing key locally without any authentication request', async () => {
     render(<App />);
     expect(fetch).not.toHaveBeenCalled();

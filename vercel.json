@@ -5,10 +5,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/xapi/:path*", "destination": "https://api.test.xapi.to/api/:path*" },
-    { "source": "/gateway/grid-trading-agent/:path*", "destination": "https://grid-trading-agent.p.test.xapi.to/:path*" },
-    { "source": "/gateway/liquidity-rebalancing-agent/:path*", "destination": "https://liquidity-rebalancing-agent.p.test.xapi.to/:path*" },
-    { "source": "/gateway/yield-optimisation-agent/:path*", "destination": "https://yield-optimisation-agent.p.test.xapi.to/:path*" },
-    { "source": "/gateway/health-factor-monitoring-agent/:path*", "destination": "https://health-factor-monitoring-agent.p.test.xapi.to/:path*" },
+    { "source": "/gateway/grid-trading-agent/:path*", "destination": "https://agent-market-grid.p.test.xapi.to/:path*" },
+    { "source": "/gateway/liquidity-rebalancing-agent/:path*", "destination": "https://agent-market-liquidity.p.test.xapi.to/:path*" },
+    { "source": "/gateway/yield-optimisation-agent/:path*", "destination": "https://agent-market-yield.p.test.xapi.to/:path*" },
+    { "source": "/gateway/health-factor-monitoring-agent/:path*", "destination": "https://agent-market-health.p.test.xapi.to/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
