@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { AgentDetailPage, AgentMarketPage } from './pages/agent-market.jsx';
 import { ApiKeyProvider, useApiKey } from './key-store.jsx';
 import { KeyGate } from './key-gate.jsx';
@@ -6,10 +6,9 @@ import { I18nProvider, useT } from './i18n.jsx';
 import { XShell } from './shell.jsx';
 
 function MarketApp() {
-  const { apiKey, pendingKey, clearKey } = useApiKey();
+  const { apiKey, pendingKey } = useApiKey();
   const { route, navigate } = XShell.useRoute();
   const { locale, setLocale } = useT();
-  const [error, setError] = useState('');
   const zh = locale === 'zh';
   return <>
     <header className="market-header">
@@ -17,17 +16,8 @@ function MarketApp() {
       <nav aria-label={zh ? '主导航' : 'Main navigation'}>
         <span className="market-environment">{zh ? '测试环境' : 'Test environment'}</span>
         <button className="btn btn-sm" onClick={() => setLocale(zh ? 'en' : 'zh')}>{zh ? 'English' : '中文'}</button>
-        {!apiKey && <button className="btn btn-sm" onClick={() => navigate('key')}>{zh ? '添加 API Key（可选）' : 'Add API key (optional)'}</button>}
-        {apiKey && <>
-          <button className="btn btn-sm" onClick={() => navigate('key')}>{zh ? '更换 Key' : 'Change key'}</button>
-          <button className="btn btn-sm" onClick={() => {
-            try { clearKey(); setError(''); navigate('agents'); }
-            catch { setError(zh ? '无法移除本地密钥，请检查浏览器存储设置。' : 'Could not remove the key. Check browser storage settings.'); }
-          }}>{zh ? '移除本地 Key' : 'Remove key'}</button>
-        </>}
       </nav>
     </header>
-    {error && <p role="alert" className="key-error">{error}</p>}
     {route.page === 'key'
       ? <KeyGate key={pendingKey ? 'pending' : 'input'} onBack={() => navigate('agents')} onEnter={() => navigate('agents')} />
       : route.page === 'agent-detail'

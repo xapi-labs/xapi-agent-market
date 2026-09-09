@@ -32,7 +32,7 @@ describe('local API key entry', () => {
     await screen.findByText('Choose an agent');
     expect(memory.has(KEY_STORAGE)).toBe(false);
     expect(fetch.mock.calls.map(([url]) => url)).toEqual(['/xapi/api-services']);
-    expect(screen.getByRole('button', { name: 'Add API key (optional)' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /API key/i })).toBeNull();
   });
   it.each(['missing', 'pending', 'unavailable storage'])('opens Agent deep links with %s key state', async state => {
     window.history.replaceState(null, '', '/agents/grid-trading-agent');
@@ -117,15 +117,14 @@ describe('local API key entry', () => {
     expect(screen.getByRole('button', { name: 'Enter Agent Market' }).disabled).toBe(true);
   });
 
-  it('keeps the market open after removing the local key', async () => {
+  it('shows no API key controls in the header even with a saved key', async () => {
     window.history.replaceState(null, '', '/');
     memory.set(KEY_STORAGE, JSON.stringify({ key: 'saved-key', ready: true }));
     render(<App />);
     await screen.findByText('Choose an agent');
-    fireEvent.click(screen.getByRole('button', { name: 'Remove key' }));
-    expect(screen.queryByLabelText('xAPI API Key')).toBeNull();
-    expect(screen.getByText('Choose an agent')).toBeTruthy();
-    expect(memory.has(KEY_STORAGE)).toBe(false);
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' });
+    expect(nav.textContent).not.toMatch(/key/i);
+    expect(screen.getByRole('button', { name: '中文' })).toBeTruthy();
   });
 
   it('uses the optional saved key for an agent call through a deep link', async () => {

@@ -24,7 +24,7 @@ The home page and Agent deep links open directly, without login, registration, a
 - An existing API key is trimmed and saved locally; entry does not validate it against an authentication endpoint. Invalid/revoked keys are reported by the gateway when an agent is called.
 - Quick create calls xAPI `POST /api/auth/register` exactly once per click and uses only the returned API key. It does not call `/auth/login/apikey`, fetch `/auth/me`, or save access/refresh tokens.
 - New keys are stored as pending until the user successfully copies them or starts a local `.txt` download, then explicitly enters. A refresh restores the pending key and still requires backup.
-- `localStorage["xapi-agent-market.key.v1"]` is scoped to this site's origin. Users can change or remove it from the header. Clearing browser data removes the key.
+- `localStorage["xapi-agent-market.key.v1"]` is scoped to this site's origin. The header has no API key or login controls. Clearing browser data removes the key.
 - Agent invocations send the saved key as `xapi-key` to the matching xAPI gateway through a same-origin deployment rewrite. Keys are never included in URLs or catalog requests. Requests omit cookies.
 
 ## Deployment
