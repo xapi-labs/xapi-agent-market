@@ -2,6 +2,10 @@
 
 Independent React + Vite frontend extracted from the latest `xapi-frontend-v2/dev`. See [SOURCE.md](SOURCE.md) for the exact source commit. This repository has its own entry point, dependencies, key storage and deployment; it does not import or deploy the xAPI console.
 
+Live site: https://xapi-agent-market.vercel.app
+
+Private repository: https://github.com/xapi-labs/xapi-agent-market
+
 ## Run
 
 ```sh
@@ -32,6 +36,8 @@ vercel --prod
 
 The initial deployment uses **xAPI test**: `api.test.xapi.to` and the four `*.p.test.xapi.to` agent gateways. These agents were present in the test catalog and absent from production when extracted. The UI identifies this environment explicitly. Use a key from the test environment.
 
+The current Vercel Hobby project is deployed through the CLI. Vercel rejected Git integration because this is an organization-owned private repository; pushing to GitHub does **not** automatically deploy. Run `vercel --prod` after pushing a validated update, or configure a supported deployment plan/integration separately.
+
 External rewrites handle browser CORS without modifying the backend. Gateway rewrites are restricted to the four configured Agent hosts. To add another agent host, add its gateway rewrite. To promote to production, first verify the agents are available there, update the destinations in `vercel.json` and the environment label in `src/app.jsx`, rebuild and redeploy. Test and production keys are not interchangeable.
 
 ## Verification
@@ -39,3 +45,5 @@ External rewrites handle browser CORS without modifying the backend. Gateway rew
 `npm test` covers the inherited Agent definitions and BscScan identities, existing-key entry without login, generated-key copy/download gating, pending-key recovery, clipboard/storage/registration failures, removal, deep links, invocation headers, cancellation and untrusted gateway rejection.
 
 The deployed site can be smoke-tested through `/xapi/api-services` and `/agents/grid-trading-agent`. Never commit real keys, downloads, browser storage or registration response payloads.
+
+Initial deployment verification (2026-09-09): 25 tests passed, production build passed, homepage/deep link/catalog/detail returned HTTP 200, and the live catalog included four Agent Studio services. A single test registration returned HTTP 201; its returned key was used for a real Grid Trading Agent invocation through the deployed rewrite, returning HTTP 200. The agent returned `needs_input` with `verified_model_output` missing rather than an actionable plan. This is an upstream evidence-validation result, not a frontend or authentication failure. The smoke test placed no orders and submitted no blockchain transactions.
