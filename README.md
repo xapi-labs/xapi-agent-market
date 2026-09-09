@@ -61,6 +61,119 @@ The wallet flow requests a live `PAYMENT-REQUIRED` quote without credentials, sh
 
 The xAPI environment is test, but wallet assets are **mainnet funds**. Live checks on 2026-09-09 returned B402 quotes for all four endpoints (0.1 token) and no Base USDC option. Base support is implemented and remains unavailable until the gateway advertises it; the client never silently substitutes another network or token. Signed payload creation is tested with mocked wallet actions; no real wallet payment was made during development.
 
+## Quick-start prompt for AI agents
+
+Copy the following prompt into an AI assistant with HTTP and wallet tooling. Replace the final task with your own objective. Opening the marketplace requires no login; payment is needed only when invoking a paid Agent.
+
+```text
+You can use xAPI Agent Market to call four onchain analysis agents. Choose the
+appropriate endpoint for my objective:
+
+1. Grid Trading Agent
+   POST https://agent-market-grid.p.test.xapi.to/x402
+   Required input fields: pair, capital_asset, capital_quote, risk_profile.
+
+2. Yield Optimisation Agent
+   POST https://agent-market-yield.p.test.xapi.to/x402
+   Required input fields: asset, amount, risk_profile.
+
+3. Health Factor Monitoring Agent
+   POST https://agent-market-health.p.test.xapi.to/x402
+   Required input field: walletAddress.
+
+4. Liquidity Rebalancing Agent
+   POST https://agent-market-liquidity.p.test.xapi.to/x402
+   Required input fields: pool, capital_amount, capital_asset.
+
+REQUEST FORMAT
+- Send POST with Content-Type: application/json.
+- Use {"prompt":"The objective and constraints","input":{...agent parameters}}.
+- These profiles analyze BNB Smart Chain. Set chainId to the string "56".
+- risk_profile must be conservative, balanced, or aggressive.
+- Use decimal strings for capital and amount fields, without currency symbols.
+- Ask me for missing required inputs. Never invent wallet addresses, holdings,
+  market prices, or evidence. Use only a public wallet address I provide.
+- Never request, expose, or store a wallet private key or seed phrase.
+
+PAYMENT AND AUTHENTICATION
+- No login or account creation is required for wallet payment.
+- First send the request without an API key or payment signature. On HTTP 402,
+  decode the base64 JSON in PAYMENT-REQUIRED and inspect its accepts entries.
+- Use only a network, asset, transfer method, and amount actually offered by
+  that challenge. Do not assume that Base USDC is available or silently switch
+  to another network or token.
+- Present the selected network, token, exact amount, recipient, and any token
+  approval or gas requirements. Obtain my confirmation before signing payment.
+- x402 supports Base USDC; B402 supports the BSC stablecoin options advertised
+  by the gateway. U/USD1 use EIP-3009; BSC USDT/USDC use Permit2 when the quote
+  specifies permit2-exact. Follow the quote's transfer method.
+- For Permit2, request only the approval needed for this call and wait for a
+  successful approval receipt before signing the payment authorization.
+- Use a compatible x402 v2 client and the connected wallet to create the
+  payment payload. Preserve the challenge's resource verbatim, keep the original
+  POST body unchanged, and retry the same HTTPS endpoint with the encoded
+  PAYMENT-SIGNATURE header. The challenge's resource is signed metadata, not
+  a URL to navigate to or a reason to downgrade the HTTP transport.
+- If I explicitly provide an xAPI test-environment API key, you may instead
+  send it in the xapi-key header to pay from account balance. Never send an
+  API key and PAYMENT-SIGNATURE together. Keep credentials out of URLs and logs.
+- If HTTP access or compatible wallet signing is unavailable, explain what
+  is missing. Do not claim that an invocation or payment succeeded.
+- Do not automatically pay again after a timeout, network error, or upstream
+  failure. Check the available payment receipt and call status first.
+- This is the xAPI test environment, but wallet payments use real mainnet funds.
+
+RESULTS
+- Parse the response JSON. If output is a JSON-encoded string, parse it again.
+- HTTP 200 does not guarantee a complete plan. Inspect statuses such as ready,
+  needs_input, and warning; report missing inputs and limitations explicitly.
+- Summarize the findings, proposed actions, supporting evidence, assumptions,
+  and risks in English unless I request another language.
+- Decode PAYMENT-RESPONSE when present and report the settlement result and
+  transaction identifier. Distinguish payment success from Agent success.
+- Keep a local record of request parameters, returned results, and payment
+  receipts using the available local storage. Do not store payment signatures
+  or credentials. Reopening a saved result must never trigger another payment.
+- These agents produce analysis and unsigned plans. Do not place orders,
+  rebalance positions, or execute the proposed onchain actions. A confirmed
+  call-fee payment does not authorize execution of the resulting strategy.
+
+MY TASK
+Build a neutral seven-day grid plan for WBNB/USDT on BNB Chain, with a capital
+budget of 1,000 USDT and a balanced risk profile. Keep some capital in reserve.
+Do not place any orders.
+```
+
+### Example request: Grid Trading Agent
+
+Save this body as `grid-request.json`:
+
+```json
+{
+  "prompt": "Build a neutral seven-day grid plan using current market evidence. Keep some capital in reserve and do not place any orders.",
+  "input": {
+    "chain": "BNB Smart Chain",
+    "chainId": "56",
+    "pair": "WBNB/USDT",
+    "capital_asset": "USDT",
+    "capital_quote": "1000",
+    "risk_profile": "balanced"
+  }
+}
+```
+
+Request a payment challenge without logging in or signing a payment:
+
+```sh
+curl --include \
+  --request POST \
+  'https://agent-market-grid.p.test.xapi.to/x402' \
+  --header 'Content-Type: application/json' \
+  --data-binary @grid-request.json
+```
+
+An HTTP 402 response with `PAYMENT-REQUIRED` is the expected unpaid response. It contains the live quote; this command alone does not authorize payment or complete a paid invocation. Use the wallet flow above to sign and retry. In the web UI, completed results and payment receipts are saved in the current browser's local history, with up to 20 runs per Agent.
+
 ## Verification
 
 `npm test` covers the inherited Agent definitions and BscScan identities, existing-key entry without login, generated-key copy/download gating, pending-key recovery, clipboard/storage/registration failures, removal, deep links, invocation headers, cancellation and untrusted gateway rejection.
