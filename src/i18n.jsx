@@ -189,13 +189,7 @@ const detectInitialLocale = () => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved && LOCALES.includes(saved)) return saved;
   } catch {}
-  // Browser language: zh-CN / zh-TW / zh → zh; everything else → en.
-  if (
-    typeof navigator !== 'undefined' &&
-    navigator.language &&
-    /^zh\b/i.test(navigator.language)
-  )
-    return 'zh';
+  // English is the default; only an explicit saved selection overrides it.
   return 'en';
 };
 

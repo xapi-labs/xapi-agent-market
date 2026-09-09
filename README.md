@@ -17,6 +17,8 @@ npm run build
 
 The local site runs at `http://localhost:5178`. `vercel.json` is the single source of truth for upstream routing, also consumed by the Vite development proxy and the gateway host allowlist. No API keys or other secrets belong in build configuration.
 
+The interface defaults to English regardless of browser language. Users can switch between English and Chinese in the header; an explicit choice is remembered in this browser.
+
 ## Optional API key
 
 The home page and Agent deep links open directly, without login, registration, a wallet connection, or an API key. An API key is optional and is configured only when the user explicitly opens `/key`. Missing, pending, invalid local storage, or removed keys never block browsing. Calls without an API key default to B402 wallet payment.

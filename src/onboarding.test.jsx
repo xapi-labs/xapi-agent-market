@@ -50,6 +50,22 @@ describe('local API key entry', () => {
     expect(screen.getByRole('button', { name: 'B402 · BSC' }).getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('defaults to English on Chinese browsers and remembers an explicit language choice', async () => {
+    memory.delete('xapi-agent-market.locale');
+    vi.spyOn(navigator, 'language', 'get').mockReturnValue('zh-CN');
+    window.history.replaceState(null, '', '/');
+    render(<App />);
+    await screen.findByText('Choose an agent');
+    expect(document.documentElement.lang).toBe('en');
+    fireEvent.click(screen.getByRole('button', { name: '中文' }));
+    await screen.findByText('选择一个 Agent');
+    expect(memory.get('xapi-agent-market.locale')).toBe('zh');
+    cleanup();
+    render(<App />);
+    await screen.findByText('选择一个 Agent');
+    expect(document.documentElement.lang).toBe('zh');
+  });
+
   it('stores an existing key locally without any authentication request', async () => {
     render(<App />);
     expect(fetch).not.toHaveBeenCalled();
